@@ -1,0 +1,118 @@
+.remote-add {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.remote-add-start {
+  width: 100%;
+  padding: 0.6rem 1rem;
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.remote-add-start:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.remote-add-desc {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.remote-add.active .remote-add-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.remote-add-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.remote-add-end {
+  padding: 0.25rem 0.5rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.remote-add-end:hover {
+  color: var(--error);
+}
+
+.remote-add-code {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.remote-add-code strong {
+  color: var(--accent);
+  font-size: 1.1rem;
+  letter-spacing: 0.05em;
+}
+
+.remote-add-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.remote-add-url-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.remote-add-url {
+  flex: 1;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.remote-add-copy {
+  padding: 0.5rem 0.75rem;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.remote-add-copy:hover {
+  background: var(--accent-dim);
+}
+
+.remote-add-qr {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem;
+  background: #fff;
+  border-radius: 8px;
+  width: fit-content;
+}
+
+.remote-add-qr svg {
+  display: block;
+}

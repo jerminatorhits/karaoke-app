@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { YouTubePlayer } from './YouTubePlayer'
 import { Queue } from './Queue'
 import { Search } from './Search'
+import { RemoteAdd } from './RemoteAdd'
 import type { QueueItem } from './types'
 import { decodeHtmlEntities } from './utils/decodeHtml'
 import './App.css'
@@ -25,13 +26,61 @@ function extractTitleFromUrl(url: string): string {
   }
 }
 
+const REMOTE_POLL_MS = 2500
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || ''
+
 function App() {
   const [queue, setQueue] = useState<QueueItem[]>([])
   const [currentIndex, setCurrentIndex] = useState<number>(0)
   const [embedBlockedIds, setEmbedBlockedIds] = useState<Set<string>>(new Set())
+  const [remoteRoomId, setRemoteRoomId] = useState<string | null>(null)
   const [addInput, setAddInput] = useState('')
   const [addError, setAddError] = useState<string | null>(null)
   const playerRef = useRef<{ loadVideo: (videoId: string) => void } | null>(null)
+
+  const api = (path: string, options?: RequestInit) =>
+    fetch((SERVER_URL || window.location.origin) + path, options)
+
+  const syncQueueToServer = useCallback((q: QueueItem[]) => {
+    if (!remoteRoomId) return
+    api(`/api/room/${remoteRoomId}/queue`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ queue: q }),
+    }).catch(() => {})
+  }, [remoteRoomId])
+
+  const startRemoteSession = useCallback(async () => {
+    try {
+      const res = await api('/api/room', { method: 'POST' })
+      if (!res.ok) throw new Error('Failed to create room')
+      const { roomId } = await res.json()
+      setRemoteRoomId(roomId)
+      const q = queue.length > 0 ? queue : []
+      await api(`/api/room/${roomId}/queue`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ queue: q }),
+      })
+    } catch {
+      setAddError('Could not start remote session. Is the server running?')
+    }
+  }, [queue])
+
+  useEffect(() => {
+    if (!remoteRoomId) return
+    const t = setInterval(async () => {
+      try {
+        const res = await api(`/api/room/${remoteRoomId}/queue`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (Array.isArray(data)) setQueue(data)
+      } catch {
+        // ignore
+      }
+    }, REMOTE_POLL_MS)
+    return () => clearInterval(t)
+  }, [remoteRoomId])
 
   const currentItem = queue[currentIndex] ?? null
 
@@ -98,9 +147,10 @@ function App() {
         setCurrentIndex(0)
         setTimeout(() => playerRef.current?.loadVideo(videoId), 100)
       }
+      if (remoteRoomId) syncQueueToServer(next)
       return next
     })
-  }, [])
+  }, [remoteRoomId, syncQueueToServer])
 
   const removeFromQueue = (id: string) => {
     setQueue((q) => {
@@ -111,6 +161,7 @@ function App() {
       } else if (idx >= 0 && idx < currentIndex) {
         setCurrentIndex((i) => i - 1)
       }
+      if (remoteRoomId) syncQueueToServer(next)
       return next
     })
   }
@@ -123,6 +174,7 @@ function App() {
       ;[next[i - 1], next[i]] = [next[i], next[i - 1]]
       if (currentIndex === i) setCurrentIndex(i - 1)
       else if (currentIndex === i - 1) setCurrentIndex(i)
+      if (remoteRoomId) syncQueueToServer(next)
       return next
     })
   }
@@ -135,6 +187,7 @@ function App() {
       ;[next[i], next[i + 1]] = [next[i + 1], next[i]]
       if (currentIndex === i) setCurrentIndex(i + 1)
       else if (currentIndex === i + 1) setCurrentIndex(i)
+      if (remoteRoomId) syncQueueToServer(next)
       return next
     })
   }
@@ -171,6 +224,11 @@ function App() {
         </section>
 
         <aside className="queue-section">
+          <RemoteAdd
+            roomId={remoteRoomId}
+            onStartSession={startRemoteSession}
+            onEndSession={() => setRemoteRoomId(null)}
+          />
           <Search onAdd={addSongToQueue} embedBlockedIds={embedBlockedIds} />
           <div className="add-song add-song-paste">
             <input

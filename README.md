@@ -8,7 +8,8 @@ A simple karaoke website that lets you queue YouTube videos and play them one af
 - **Add by URL** – Or paste any YouTube URL to add it to the queue
 - **Queue management** – Reorder with ↑/↓, remove songs, or click a song to jump to it
 - **Auto-advance** – When a video ends, the next song in the queue starts automatically
-- **No backend** – Runs entirely in the browser (playback needs no API key)
+- **Remote add** – Run the optional server and enable “Remote add” so others can add songs from their phone (same WiFi or deploy the server)
+- **No backend** – Runs entirely in the browser (playback needs no API key) unless you use remote add
 
 ## Quick start
 
@@ -25,11 +26,35 @@ Open [http://localhost:5173](http://localhost:5173). You can paste YouTube links
 
 Then you can search for songs and add them with one click.
 
+## Remote add (phone / other device)
+
+To let someone else add songs from their phone (or another browser) without touching the main screen:
+
+1. **Start the server** (in a second terminal):
+   ```bash
+   npm run server
+   ```
+   The server runs on port 4000. In dev, keep `npm run dev` running too; Vite will proxy `/api` and `/add` to the server.
+
+2. **On the main browser:** Click **Enable remote add** in the sidebar. You’ll get a room code, a link, and a QR code.
+
+3. **On the other device:** Open the link (or scan the QR code). The room code is in the URL. Paste a YouTube URL and tap **Add to queue**. The song appears on the main queue and stays in sync.
+
+**Same WiFi:** So the phone can reach the server, start the server with your computer’s LAN IP, e.g.:
+```bash
+BASE_URL=http://192.168.1.5:4000 npm run server
+```
+Use that same URL in the add link (the server sends it via `/api/config`). If you only use the main app in the same browser, the default `http://localhost:4000` is fine.
+
+**Production:** Run `npm run start` to build and serve the app from the server on one port. Set `BASE_URL` to your public URL so the add link works from anywhere.
+
 ## Build
 
 ```bash
 npm run build
-npm run preview   # serve the production build
+npm run preview   # serve the production build (no remote-add server)
+# Or build + run server (app + remote add):
+npm run start     # builds then runs server on port 4000
 ```
 
 ## Tech
@@ -38,3 +63,4 @@ npm run preview   # serve the production build
 - Vite
 - YouTube IFrame Player API (playback; no API key needed)
 - YouTube Data API v3 (search only; optional, needs `VITE_YOUTUBE_API_KEY`)
+- Optional Node server (Express) for remote add: room-based queue API + `/add` page for phones

@@ -3,6 +3,7 @@ import { YouTubePlayer } from './YouTubePlayer'
 import { Queue } from './Queue'
 import { Search } from './Search'
 import type { QueueItem } from './types'
+import { decodeHtmlEntities } from './utils/decodeHtml'
 import './App.css'
 
 const YT_VIDEO_ID_REGEX =
@@ -155,7 +156,7 @@ function App() {
           />
           {currentItem && (
             <p className="now-playing">
-              Now playing: {currentItem.title}
+              Now playing: {decodeHtmlEntities(currentItem.title)}
               {' · '}
               <a
                 href={`https://www.youtube.com/watch?v=${currentItem.videoId}`}
@@ -170,7 +171,7 @@ function App() {
         </section>
 
         <aside className="queue-section">
-          <Search onAdd={addSongToQueue} />
+          <Search onAdd={addSongToQueue} embedBlockedIds={embedBlockedIds} />
           <div className="add-song add-song-paste">
             <input
               type="text"

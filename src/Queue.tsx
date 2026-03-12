@@ -1,4 +1,5 @@
 import type { QueueItem } from './types'
+import { decodeHtmlEntities } from './utils/decodeHtml'
 
 interface QueueProps {
   items: QueueItem[]
@@ -45,7 +46,7 @@ export function Queue({
                 className="queue-item-title queue-item-title-link"
                 title="Embed disabled — watch on YouTube"
               >
-                {item.title}
+                {decodeHtmlEntities(item.title)}
               </a>
             ) : (
               <button
@@ -54,7 +55,7 @@ export function Queue({
                 onClick={() => onPlay(item.videoId, index)}
                 title="Play this song"
               >
-                {item.title}
+                {decodeHtmlEntities(item.title)}
               </button>
             )}
             <div className="queue-item-actions">

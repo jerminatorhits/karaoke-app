@@ -23,6 +23,35 @@ interface SearchListResponse {
 }
 
 const SEARCH_URL = 'https://www.googleapis.com/youtube/v3/search'
+const VIDEOS_URL = 'https://www.googleapis.com/youtube/v3/videos'
+
+interface VideosListResponse {
+  items?: Array<{ id?: string; status?: { embeddable?: boolean } }>
+  error?: { message?: string }
+}
+
+/** Fetch embeddable status for video IDs (videos.list part=status). Returns Set of videoIds that are embeddable. */
+export async function getEmbeddableVideoIds(
+  videoIds: string[],
+  apiKey: string
+): Promise<Set<string>> {
+  if (videoIds.length === 0) return new Set()
+  const params = new URLSearchParams({
+    part: 'status',
+    id: videoIds.join(','),
+    key: apiKey,
+  })
+  const res = await fetch(`${VIDEOS_URL}?${params}`)
+  const data: VideosListResponse = await res.json()
+  if (!res.ok || data.error) return new Set()
+  const embeddable = new Set<string>()
+  for (const item of data.items ?? []) {
+    if (item.id && item.status?.embeddable === true) {
+      embeddable.add(item.id)
+    }
+  }
+  return embeddable
+}
 
 export async function searchYouTube(
   query: string,
@@ -36,6 +65,7 @@ export async function searchYouTube(
     part: 'snippet',
     type: 'video',
     videoEmbeddable: 'true',
+    videoSyndicated: 'true',
     maxResults: '15',
     q: searchQuery,
     key: apiKey,
@@ -50,7 +80,7 @@ export async function searchYouTube(
   }
 
   const items = data.items ?? []
-  return items
+  const results: YouTubeSearchResult[] = items
     .filter((item) => item.id?.kind === 'youtube#video' && item.id?.videoId)
     .map((item) => ({
       videoId: item.id!.videoId!,
@@ -61,4 +91,12 @@ export async function searchYouTube(
         item.snippet?.thumbnails?.default?.url ??
         '',
     }))
+
+  if (results.length === 0) return results
+
+  const embeddableIds = await getEmbeddableVideoIds(
+    results.map((r) => r.videoId),
+    apiKey
+  )
+  return results.filter((r) => embeddableIds.has(r.videoId))
 }

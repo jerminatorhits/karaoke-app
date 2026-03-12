@@ -1,14 +1,18 @@
 import { useState, useCallback, useRef } from 'react'
 import { searchYouTube, type YouTubeSearchResult } from './api/youtubeSearch'
+import { decodeHtmlEntities } from './utils/decodeHtml'
 import './Search.css'
 
 const API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY ?? ''
+const SEARCH_DEBOUNCE_MS = 1000
 
 interface SearchProps {
   onAdd: (videoId: string, title: string) => void
+  /** Video IDs we already know can't be embedded (from playback errors) — hide these from results */
+  embedBlockedIds?: Set<string>
 }
 
-export function Search({ onAdd }: SearchProps) {
+export function Search({ onAdd, embedBlockedIds = new Set() }: SearchProps) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<YouTubeSearchResult[]>([])
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
@@ -49,7 +53,7 @@ export function Search({ onAdd }: SearchProps) {
       setErrorMessage(null)
       return
     }
-    debounceRef.current = setTimeout(() => runSearch(value), 300)
+    debounceRef.current = setTimeout(() => runSearch(value), SEARCH_DEBOUNCE_MS)
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -91,7 +95,9 @@ export function Search({ onAdd }: SearchProps) {
       )}
       {results.length > 0 && (
         <ul className="search-results" aria-label="Search results">
-          {results.map((item) => (
+          {results
+            .filter((item) => !embedBlockedIds.has(item.videoId))
+            .map((item) => (
             <li key={item.videoId} className="search-result-item">
               <button
                 type="button"
@@ -108,7 +114,7 @@ export function Search({ onAdd }: SearchProps) {
                   />
                 )}
                 <span className="search-result-info">
-                  <span className="search-result-title">{item.title}</span>
+                  <span className="search-result-title">{decodeHtmlEntities(item.title)}</span>
                   {item.channelTitle && (
                     <span className="search-result-channel">{item.channelTitle}</span>
                   )}

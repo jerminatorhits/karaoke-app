@@ -153,59 +153,6 @@
   }
 }
 
-.add-song {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.add-song-paste {
-  margin-top: 0.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
-}
-
-.add-song input {
-  width: 100%;
-  padding: 0.65rem 0.9rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 0.9rem;
-}
-
-.add-song input::placeholder {
-  color: var(--text-muted);
-}
-
-.add-song input:focus {
-  outline: none;
-  border-color: var(--focus);
-  box-shadow: 0 0 0 2px rgba(183, 138, 255, 0.25);
-}
-
-.add-song button {
-  padding: 0.65rem 1rem;
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.add-song button:hover {
-  background: var(--accent-dim);
-}
-
-.add-error {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--error);
-}
-
 .queue {
   list-style: none;
   margin: 0;

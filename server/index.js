@@ -30,6 +30,20 @@ function randomRoomId() {
   return id
 }
 
+/** Decode HTML entities so titles display as human-readable (e.g. &#39; → '). */
+function decodeHtmlEntities(str) {
+  if (!str || typeof str !== 'string') return str
+  return str
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)))
+}
+
 async function fetchVideoTitle(videoId) {
   if (!YOUTUBE_API_KEY) return `Video ${videoId.slice(0, 8)}`
   try {
@@ -37,8 +51,9 @@ async function fetchVideoTitle(videoId) {
       `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${YOUTUBE_API_KEY}`
     )
     const data = await res.json()
-    const title = data?.items?.[0]?.snippet?.title
-    return title && typeof title === 'string' ? title : `Video ${videoId.slice(0, 8)}`
+    const raw = data?.items?.[0]?.snippet?.title
+    const title = raw && typeof raw === 'string' ? raw : `Video ${videoId.slice(0, 8)}`
+    return decodeHtmlEntities(title)
   } catch {
     return `Video ${videoId.slice(0, 8)}`
   }
@@ -86,8 +101,8 @@ app.get('/api/search', async (req, res) => {
       .filter((i) => i.id?.kind === 'youtube#video' && i.id?.videoId)
       .map((i) => ({
         videoId: i.id.videoId,
-        title: i.snippet?.title ?? 'Unknown',
-        channelTitle: i.snippet?.channelTitle ?? '',
+        title: decodeHtmlEntities(i.snippet?.title ?? 'Unknown'),
+        channelTitle: decodeHtmlEntities(i.snippet?.channelTitle ?? ''),
         thumbnailUrl: i.snippet?.thumbnails?.medium?.url || i.snippet?.thumbnails?.default?.url || '',
       }))
     if (items.length === 0) return res.json([])
@@ -100,10 +115,15 @@ app.get('/api/search', async (req, res) => {
 })
 
 app.post('/api/room', (req, res) => {
-  let roomId = randomRoomId()
-  while (rooms.has(roomId)) roomId = randomRoomId()
-  rooms.set(roomId, { queue: [] })
-  res.json({ roomId })
+  try {
+    let roomId = randomRoomId()
+    while (rooms.has(roomId)) roomId = randomRoomId()
+    rooms.set(roomId, { queue: [] })
+    res.json({ roomId })
+  } catch (err) {
+    console.error('POST /api/room error:', err)
+    res.status(500).json({ error: err.message || 'Failed to create room' })
+  }
 })
 
 app.get('/api/room/:roomId/queue', (req, res) => {
@@ -141,6 +161,7 @@ app.get('/api/config', (req, res) => {
 })
 
 app.get('/add', (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate')
   res.sendFile(path.join(__dirname, 'add.html'))
 })
 

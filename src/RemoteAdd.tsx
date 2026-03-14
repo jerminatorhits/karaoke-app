@@ -6,11 +6,12 @@ const SERVER_URL = import.meta.env.VITE_SERVER_URL || ''
 
 interface RemoteAddProps {
   roomId: string | null
+  error: string | null
   onStartSession: () => void
   onEndSession: () => void
 }
 
-export function RemoteAdd({ roomId, onStartSession, onEndSession }: RemoteAddProps) {
+export function RemoteAdd({ roomId, error, onStartSession, onEndSession }: RemoteAddProps) {
   const [baseUrl, setBaseUrl] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -64,6 +65,7 @@ export function RemoteAdd({ roomId, onStartSession, onEndSession }: RemoteAddPro
       <button type="button" className="remote-add-start" onClick={onStartSession}>
         Enable remote add
       </button>
+      {error && <p className="remote-add-error" role="alert">{error}</p>}
       <p className="remote-add-desc">Let others add songs from their phone using the room link.</p>
     </div>
   )

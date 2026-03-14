@@ -18,7 +18,6 @@
     h1 { font-size: 1.25rem; margin: 0 0 1rem; }
     label { display: block; font-size: 0.85rem; margin-bottom: 0.25rem; color: #8b8698; }
     input[type="text"],
-    input[type="url"],
     input[type="search"] {
       width: 100%;
       padding: 0.75rem;
@@ -94,7 +93,32 @@
       font-weight: 600;
     }
     .result-btn:hover .result-add { background: #c94d7a; }
-    .paste-section { padding-top: 1rem; border-top: 1px solid #2d2a3a; }
+    .queue-preview {
+      margin-bottom: 1.5rem;
+      padding: 0.75rem;
+      border: 1px solid #2d2a3a;
+      border-radius: 8px;
+      background: #1a1922;
+    }
+    .queue-preview.empty { color: #8b8698; font-size: 0.9rem; }
+    .queue-preview-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      max-height: 160px;
+      overflow-y: auto;
+    }
+    .queue-preview-list li {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0;
+      font-size: 0.85rem;
+      border-bottom: 1px solid #2d2a3a;
+    }
+    .queue-preview-list li:last-child { border-bottom: none; }
+    .queue-preview-num { color: #8b8698; min-width: 1.5em; flex-shrink: 0; }
+    .queue-preview-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   </style>
 </head>
 <body>
@@ -106,6 +130,13 @@
       <input type="text" id="room" placeholder="e.g. ABC123" required maxlength="10" />
     </div>
 
+    <div class="section queue-preview-section" id="queuePreviewSection" aria-label="Current queue">
+      <div class="section-title">Current queue</div>
+      <div class="queue-preview" id="queuePreview">
+        <span class="empty">Enter room code to see queue.</span>
+      </div>
+    </div>
+
     <div class="section">
       <div class="section-title">Search YouTube</div>
       <div class="row">
@@ -115,49 +146,108 @@
       <ul class="search-results" id="searchResults" aria-label="Search results"></ul>
       <p class="message" id="searchMessage" aria-live="polite"></p>
     </div>
-
-    <div class="section paste-section">
-      <div class="section-title">Or paste YouTube URL</div>
-      <form id="form">
-        <input type="url" id="url" placeholder="https://youtube.com/watch?v=..." />
-        <button type="submit" id="btn">Add to queue</button>
-      </form>
-      <p class="message" id="message" aria-live="polite"></p>
-    </div>
   </div>
   <script>
-    const YT_REGEX = /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
     const roomInput = document.getElementById('room')
     const searchInput = document.getElementById('search')
     const searchBtn = document.getElementById('searchBtn')
     const searchResults = document.getElementById('searchResults')
     const searchMessage = document.getElementById('searchMessage')
-    const form = document.getElementById('form')
-    const urlInput = document.getElementById('url')
-    const btn = document.getElementById('btn')
-    const message = document.getElementById('message')
+    const queuePreview = document.getElementById('queuePreview')
 
     const params = new URLSearchParams(window.location.search)
     if (params.get('room')) roomInput.value = params.get('room')
+
+    const MAX_QUEUE_PREVIEW = 15
+    let queuePollTimer = null
 
     function getRoomId() {
       return roomInput.value.trim().toUpperCase()
     }
 
-    function setMsg(text, type) {
-      message.textContent = text
-      message.className = 'message ' + (type || '')
+    async function fetchQueue() {
+      const roomId = getRoomId()
+      if (!roomId) {
+        queuePreview.innerHTML = '<span class="empty">Enter room code to see queue.</span>'
+        queuePreview.className = 'queue-preview empty'
+        return
+      }
+      try {
+        const res = await fetch(window.location.origin + '/api/room/' + encodeURIComponent(roomId) + '/queue')
+        if (res.status === 404) {
+          queuePreview.innerHTML = '<span class="empty">Room not found.</span>'
+          queuePreview.className = 'queue-preview empty'
+          return
+        }
+        if (!res.ok) throw new Error('Failed to load queue')
+        const queue = await res.json()
+        if (!Array.isArray(queue) || queue.length === 0) {
+          queuePreview.innerHTML = '<span class="empty">Queue is empty. Your song will be first!</span>'
+          queuePreview.className = 'queue-preview empty'
+          return
+        }
+        const show = queue.slice(0, MAX_QUEUE_PREVIEW)
+        queuePreview.className = 'queue-preview'
+        queuePreview.innerHTML = ''
+        const ul = document.createElement('ul')
+        ul.className = 'queue-preview-list'
+        show.forEach((item, i) => {
+          const li = document.createElement('li')
+          li.innerHTML = '<span class="queue-preview-num">' + (i + 1) + '.</span><span class="queue-preview-title" title="' + escapeHtml(item.title) + '">' + escapeHtml(item.title) + '</span>'
+          ul.appendChild(li)
+        })
+        queuePreview.appendChild(ul)
+        if (queue.length > MAX_QUEUE_PREVIEW) {
+          const more = document.createElement('p')
+          more.className = 'empty'
+          more.style.marginTop = '0.5rem'
+          more.style.marginBottom = '0'
+          more.textContent = '+ ' + (queue.length - MAX_QUEUE_PREVIEW) + ' more'
+          queuePreview.appendChild(more)
+        }
+      } catch {
+        queuePreview.innerHTML = '<span class="empty">Could not load queue.</span>'
+        queuePreview.className = 'queue-preview empty'
+      }
     }
+
+    function startQueuePoll() {
+      if (queuePollTimer) clearInterval(queuePollTimer)
+      const roomId = getRoomId()
+      if (!roomId) return
+      fetchQueue()
+      queuePollTimer = setInterval(fetchQueue, 5000)
+    }
+
+    function stopQueuePoll() {
+      if (queuePollTimer) {
+        clearInterval(queuePollTimer)
+        queuePollTimer = null
+      }
+    }
+
+    roomInput.addEventListener('input', () => {
+      stopQueuePoll()
+      const roomId = getRoomId()
+      if (roomId) startQueuePoll()
+      else fetchQueue()
+    })
+    roomInput.addEventListener('blur', () => {
+      if (getRoomId()) fetchQueue()
+    })
+
+    if (getRoomId()) startQueuePoll()
+    else fetchQueue()
 
     function setSearchMsg(text, type) {
       searchMessage.textContent = text || ''
       searchMessage.className = 'message ' + (type || '')
     }
 
-    async function addToQueue(videoId, title) {
+    async function addToQueue(videoId) {
       const roomId = getRoomId()
       if (!roomId) {
-        setMsg('Enter room code first.', 'error')
+        setSearchMsg('Enter room code first.', 'error')
         return
       }
       try {
@@ -170,11 +260,10 @@
           const err = await res.json().catch(() => ({}))
           throw new Error(err.error || res.statusText)
         }
-        setMsg('Added to queue!', 'success')
         setSearchMsg('Added to queue!', 'success')
-        setTimeout(() => { setMsg(''); setSearchMsg('') }, 2000)
+        fetchQueue()
+        setTimeout(() => setSearchMsg(''), 2000)
       } catch (err) {
-        setMsg(err.message || 'Failed to add.', 'error')
         setSearchMsg(err.message || 'Failed to add.', 'error')
       }
     }
@@ -208,7 +297,7 @@
               <span class="result-add">+ Add</span>
             </button>
           `
-          li.querySelector('button').addEventListener('click', () => addToQueue(item.videoId, item.title))
+          li.querySelector('button').addEventListener('click', () => addToQueue(item.videoId))
           searchResults.appendChild(li)
         })
       } catch (err) {
@@ -230,26 +319,6 @@
       div.textContent = s
       return div.innerHTML
     }
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault()
-      const roomId = getRoomId()
-      const url = urlInput.value.trim()
-      const match = url.match(YT_REGEX)
-      if (!match) {
-        setMsg('Enter a valid YouTube URL.', 'error')
-        return
-      }
-      const videoId = match[1]
-      btn.disabled = true
-      setMsg('Adding…')
-      try {
-        await addToQueue(videoId)
-        urlInput.value = ''
-      } finally {
-        btn.disabled = false
-      }
-    })
   </script>
 </body>
 </html>

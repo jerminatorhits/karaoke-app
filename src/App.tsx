@@ -7,39 +7,33 @@ import type { QueueItem } from './types'
 import { decodeHtmlEntities } from './utils/decodeHtml'
 import './App.css'
 
-const YT_VIDEO_ID_REGEX =
-  /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
-
-function parseYouTubeVideoId(input: string): string | null {
-  const trimmed = input.trim()
-  const match = trimmed.match(YT_VIDEO_ID_REGEX)
-  return match ? match[1] : null
-}
-
-function extractTitleFromUrl(url: string): string {
-  try {
-    const u = new URL(url.startsWith('http') ? url : `https://${url}`)
-    const v = u.searchParams.get('v') || url.split('/').pop() || ''
-    return v ? `Song ${v.slice(0, 8)}` : 'Unknown'
-  } catch {
-    return 'Unknown'
-  }
-}
-
 const REMOTE_POLL_MS = 2500
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || ''
+const REMOTE_ROOM_STORAGE_KEY = 'karaoke-remote-room'
 
 function App() {
   const [queue, setQueue] = useState<QueueItem[]>([])
   const [currentIndex, setCurrentIndex] = useState<number>(0)
   const [embedBlockedIds, setEmbedBlockedIds] = useState<Set<string>>(new Set())
   const [remoteRoomId, setRemoteRoomId] = useState<string | null>(null)
-  const [addInput, setAddInput] = useState('')
-  const [addError, setAddError] = useState<string | null>(null)
+  const [remoteAddError, setRemoteAddError] = useState<string | null>(null)
   const playerRef = useRef<{ loadVideo: (videoId: string) => void } | null>(null)
 
   const api = (path: string, options?: RequestInit) =>
     fetch((SERVER_URL || window.location.origin) + path, options)
+
+  // When main app loads (e.g. after refresh), clear the server queue for any persisted room
+  // so the Add page reflects "queue destroyed" instead of showing stale data.
+  useEffect(() => {
+    const persisted = localStorage.getItem(REMOTE_ROOM_STORAGE_KEY)
+    if (!persisted) return
+    localStorage.removeItem(REMOTE_ROOM_STORAGE_KEY)
+    api(`/api/room/${persisted}/queue`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ queue: [] }),
+    }).catch(() => {})
+  }, [])
 
   const syncQueueToServer = useCallback((q: QueueItem[]) => {
     if (!remoteRoomId) return
@@ -51,19 +45,39 @@ function App() {
   }, [remoteRoomId])
 
   const startRemoteSession = useCallback(async () => {
+    setRemoteAddError(null)
     try {
       const res = await api('/api/room', { method: 'POST' })
-      if (!res.ok) throw new Error('Failed to create room')
-      const { roomId } = await res.json()
+      if (!res.ok) {
+        const text = await res.text()
+        let msg: string
+        try {
+          const err = JSON.parse(text) as { error?: string }
+          msg = err.error || res.statusText
+        } catch {
+          msg = text || res.statusText
+        }
+        if (res.status === 500 && !/server|run|terminal/i.test(msg)) {
+          msg = `${msg.trim()}. Run the server in another terminal: npm run server`
+        }
+        throw new Error(msg || 'Failed to create room')
+      }
+      const data = (await res.json()) as { roomId?: string }
+      const roomId = data?.roomId
+      if (!roomId || typeof roomId !== 'string') throw new Error('Invalid response from server')
       setRemoteRoomId(roomId)
+      localStorage.setItem(REMOTE_ROOM_STORAGE_KEY, roomId)
       const q = queue.length > 0 ? queue : []
-      await api(`/api/room/${roomId}/queue`, {
+      const putRes = await api(`/api/room/${roomId}/queue`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ queue: q }),
       })
-    } catch {
-      setAddError('Could not start remote session. Is the server running?')
+      if (!putRes.ok) {
+        setRemoteAddError('Room created but queue sync failed. You can still use the room.')
+      }
+    } catch (err) {
+      setRemoteAddError(err instanceof Error ? err.message : 'Failed to start remote add. Run the server: npm run server')
     }
   }, [queue])
 
@@ -83,6 +97,18 @@ function App() {
   }, [remoteRoomId])
 
   const currentItem = queue[currentIndex] ?? null
+
+  // Ask the browser to show a leave warning on refresh/close when queue has songs.
+  const hasSongsInQueue = queue.length > 0
+  useEffect(() => {
+    if (!hasSongsInQueue) return
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ' '
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [hasSongsInQueue])
 
   const playNext = useCallback(() => {
     setCurrentIndex((i) => {
@@ -126,18 +152,6 @@ function App() {
       }
     }
   }, [queue.length, currentItem, loadVideo, queue, embedBlockedIds])
-
-  const handleAdd = () => {
-    setAddError(null)
-    const videoId = parseYouTubeVideoId(addInput)
-    if (!videoId) {
-      setAddError('Paste a valid YouTube URL (e.g. youtube.com/watch?v=... or youtu.be/...)')
-      return
-    }
-    const title = extractTitleFromUrl(addInput)
-    addSongToQueue(videoId, title)
-    setAddInput('')
-  }
 
   const addSongToQueue = useCallback((videoId: string, title: string) => {
     const newItem: QueueItem = { id: crypto.randomUUID(), videoId, title }
@@ -196,7 +210,7 @@ function App() {
     <div className="app">
       <header className="header">
         <h1>Karaoke Queue</h1>
-        <p className="tagline">Add YouTube links, queue up, and sing along.</p>
+        <p className="tagline">Search for karaoke tracks, queue up, and sing along.</p>
       </header>
 
       <div className="main">
@@ -226,24 +240,22 @@ function App() {
         <aside className="queue-section">
           <RemoteAdd
             roomId={remoteRoomId}
+            error={remoteAddError}
             onStartSession={startRemoteSession}
-            onEndSession={() => setRemoteRoomId(null)}
+            onEndSession={() => {
+              setRemoteAddError(null)
+              if (remoteRoomId) {
+                api(`/api/room/${remoteRoomId}/queue`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ queue: [] }),
+                }).catch(() => {})
+                localStorage.removeItem(REMOTE_ROOM_STORAGE_KEY)
+              }
+              setRemoteRoomId(null)
+            }}
           />
           <Search onAdd={addSongToQueue} embedBlockedIds={embedBlockedIds} />
-          <div className="add-song add-song-paste">
-            <input
-              type="text"
-              placeholder="Or paste YouTube URL..."
-              value={addInput}
-              onChange={(e) => setAddInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-              aria-label="YouTube URL"
-            />
-            <button type="button" onClick={handleAdd}>
-              Add to queue
-            </button>
-            {addError && <p className="add-error">{addError}</p>}
-          </div>
 
           <Queue
             items={queue}

@@ -5,7 +5,6 @@ A simple karaoke website that lets you queue YouTube videos and play them one af
 ## Features
 
 - **Search** – Search YouTube and add songs with one click (requires a free API key; see below)
-- **Add by URL** – Or paste any YouTube URL to add it to the queue
 - **Queue management** – Reorder with ↑/↓, remove songs, or click a song to jump to it
 - **Auto-advance** – When a video ends, the next song in the queue starts automatically
 - **Remote add** – Run the optional server and enable “Remote add” so others can add songs from their phone (same WiFi or deploy the server)
@@ -18,7 +17,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173). You can paste YouTube links to add songs, or enable **search** (recommended) by adding a YouTube Data API key:
+Open [http://localhost:5173](http://localhost:5173). Add songs by **searching** for karaoke tracks (requires a YouTube Data API key):
 
 1. Copy [.env.example](.env.example) to `.env`.
 2. In [Google Cloud Console](https://console.cloud.google.com/), create or select a project → **APIs & Services** → **Enable "YouTube Data API v3"** → **Create credentials** → **API key**.
@@ -38,7 +37,7 @@ To let someone else add songs from their phone (or another browser) without touc
 
 2. **On the main browser:** Click **Enable remote add** in the sidebar. You’ll get a room code, a link, and a QR code.
 
-3. **On the other device:** Open the link (or scan the QR code). The room code is in the URL. Paste a YouTube URL and tap **Add to queue**. The song appears on the main queue and stays in sync.
+3. **On the other device:** Open the link (or scan the QR code). The room code is in the URL. Search for a song and tap **+ Add**. The song appears on the main queue and stays in sync.
 
 **Same WiFi:** So the phone can reach the server, start the server with your computer’s LAN IP, e.g.:
 ```bash

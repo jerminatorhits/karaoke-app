@@ -23,7 +23,7 @@ export function Queue({
   if (items.length === 0) {
     return (
       <div className="queue queue-empty">
-        <p>Queue is empty. Paste a YouTube URL and click Add to queue.</p>
+        <p>Queue is empty. Search above to add songs.</p>
       </div>
     )
   }

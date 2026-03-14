@@ -28,6 +28,12 @@
   color: var(--text-muted);
 }
 
+.remote-add-error {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--error);
+}
+
 .remote-add.active .remote-add-header {
   display: flex;
   align-items: center;

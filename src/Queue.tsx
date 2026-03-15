@@ -8,7 +8,6 @@ interface QueueProps {
   onRemove: (id: string) => void
   onMoveUp: (id: string) => void
   onMoveDown: (id: string) => void
-  onPlay: (videoId: string, index: number) => void
 }
 
 export function Queue({
@@ -18,7 +17,6 @@ export function Queue({
   onRemove,
   onMoveUp,
   onMoveDown,
-  onPlay,
 }: QueueProps) {
   if (items.length === 0) {
     return (
@@ -38,27 +36,21 @@ export function Queue({
             className={`queue-item ${item.id === currentId ? 'is-current' : ''} ${isBlocked ? 'is-embed-blocked' : ''}`}
           >
             <span className="queue-item-index">{index + 1}</span>
-            {isBlocked ? (
-              <a
-                href={`https://www.youtube.com/watch?v=${item.videoId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="queue-item-title queue-item-title-link"
-                title="Embed disabled — watch on YouTube"
-              >
-                {decodeHtmlEntities(item.title)}
-              </a>
-            ) : (
-              <button
-                type="button"
-                className="queue-item-title"
-                onClick={() => onPlay(item.videoId, index)}
-                title="Play this song"
-              >
-                {decodeHtmlEntities(item.title)}
-              </button>
-            )}
+            <span className="queue-item-title">
+              {decodeHtmlEntities(item.title)}
+            </span>
             <div className="queue-item-actions">
+              {isBlocked && (
+                <a
+                  href={`https://www.youtube.com/watch?v=${item.videoId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="queue-item-action-link"
+                  title="Open in YouTube"
+                >
+                  YouTube
+                </a>
+              )}
               <button
                 type="button"
                 onClick={() => onMoveUp(item.id)}

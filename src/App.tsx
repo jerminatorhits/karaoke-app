@@ -360,12 +360,6 @@ function App() {
                       ? nextSixSongs.map((item, i) => `${i + 1}. ${decodeHtmlEntities(item.title)}`).join('  •  ')
                       : 'Queue is empty — add songs from your phone!'}
                   </span>
-                  <span className="party-ticker-sep" aria-hidden>  •  </span>
-                  <span className="party-ticker-text">
-                    {nextSixSongs.length > 0
-                      ? nextSixSongs.map((item, i) => `${i + 1}. ${decodeHtmlEntities(item.title)}`).join('  •  ')
-                      : 'Queue is empty — add songs from your phone!'}
-                  </span>
                 </div>
               </div>
               {partyAddUrl && (

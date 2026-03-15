@@ -107,13 +107,14 @@
 
 .party-ticker {
   position: absolute;
+  left: 100%;
   top: 50%;
-  right: 0;
   transform: translateY(-50%);
   display: flex;
   align-items: center;
   white-space: nowrap;
-  animation: party-ticker-scroll 37.5s linear infinite;
+  animation: party-ticker-scroll 18.75s linear infinite;
+  animation-iteration-count: infinite;
 }
 
 .party-ticker-text {
@@ -123,17 +124,15 @@
   color: #fff;
 }
 
-.party-ticker-sep {
-  padding-right: 3rem;
-  font-size: 0.95rem;
-  color: #fff;
-  opacity: 0.8;
+/* Start at right (left: 100%); scroll by content width + viewport width so it goes all the way across and exits left */
+@keyframes party-ticker-scroll {
+  0% { left: 100%; transform: translateY(-50%) translateX(0); }
+  100% { left: 100%; transform: translateY(-50%) translateX(calc(-100% - 100vw)); }
 }
 
-/* Seamless loop: two copies of content, scroll by 50% so second copy replaces first */
-@keyframes party-ticker-scroll {
-  0% { transform: translateY(-50%) translateX(0); }
-  100% { transform: translateY(-50%) translateX(-50%); }
+@-webkit-keyframes party-ticker-scroll {
+  0% { left: 100%; transform: translateY(-50%) translateX(0); }
+  100% { left: 100%; transform: translateY(-50%) translateX(calc(-100% - 100vw)); }
 }
 
 .party-qr {

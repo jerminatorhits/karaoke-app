@@ -22,6 +22,24 @@ function App() {
   const [partyAddUrl, setPartyAddUrl] = useState<string | null>(null)
   const playerRef = useRef<{ loadVideo: (videoId: string) => void } | null>(null)
   const appRef = useRef<HTMLDivElement>(null)
+  const [cursorIdle, setCursorIdle] = useState(false)
+  const cursorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const CURSOR_IDLE_MS = 2000
+
+  useEffect(() => {
+    const onMove = () => {
+      setCursorIdle(false)
+      if (cursorTimeoutRef.current) clearTimeout(cursorTimeoutRef.current)
+      cursorTimeoutRef.current = setTimeout(() => setCursorIdle(true), CURSOR_IDLE_MS)
+    }
+    onMove()
+    document.addEventListener('mousemove', onMove)
+    return () => {
+      document.removeEventListener('mousemove', onMove)
+      if (cursorTimeoutRef.current) clearTimeout(cursorTimeoutRef.current)
+    }
+  }, [])
 
   const api = (path: string, options?: RequestInit) =>
     fetch((SERVER_URL || window.location.origin) + path, options)
@@ -174,14 +192,6 @@ function App() {
     }
   }, [])
 
-  const exitPartyMode = useCallback(() => {
-    const doc = document as Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => Promise<void> }
-    if (document.fullscreenElement || doc.webkitFullscreenElement) {
-      (document.exitFullscreen ?? doc.webkitExitFullscreen)?.call(document)?.catch(() => {})
-    }
-    setPartyMode(false)
-  }, [])
-
   const nextSixSongs = queue.slice(0, 6)
 
   // Ask the browser to show a leave warning on refresh/close when queue has songs.
@@ -283,7 +293,7 @@ function App() {
   }
 
   return (
-    <div ref={appRef} className={`app ${partyMode ? 'app-party-mode' : ''}`}>
+    <div ref={appRef} className={`app ${partyMode ? 'app-party-mode' : ''} ${cursorIdle ? 'cursor-idle' : ''}`}>
       {!partyMode && (
         <header className="header">
           <h1>Karaoke Queue</h1>
@@ -299,21 +309,13 @@ function App() {
           <YouTubePlayer
             ref={playerRef}
             videoId={playingItem?.videoId ?? ''}
+            disableControls={partyMode}
             onEnded={playNext}
             onEmbedBlocked={handleEmbedBlocked}
           />
           {playingItem && !partyMode && (
             <p className="now-playing">
               Now playing: {decodeHtmlEntities(playingItem.title)}
-              {' · '}
-              <a
-                href={`https://www.youtube.com/watch?v=${playingItem?.videoId ?? ''}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="watch-on-yt"
-              >
-                Watch on YouTube
-              </a>
             </p>
           )}
         </section>
@@ -341,11 +343,13 @@ function App() {
 
           <Queue
             items={queue}
+            playingItem={playingItem}
             currentId={null}
             embedBlockedIds={embedBlockedIds}
             onRemove={removeFromQueue}
             onMoveUp={moveUp}
             onMoveDown={moveDown}
+            onSkipCurrent={playNext}
           />
         </aside>
         )}
@@ -364,17 +368,10 @@ function App() {
               </div>
               {partyAddUrl && (
                 <div className="party-qr" aria-label="Scan to add songs">
-                  <QRCodeSVG value={partyAddUrl} size={88} level="M" />
+                  <QRCodeSVG value={partyAddUrl} size={176} level="M" />
                 </div>
               )}
             </div>
-            <button
-              type="button"
-              className="party-exit"
-              onClick={exitPartyMode}
-            >
-              Exit Party Mode
-            </button>
           </>
         )}
       </div>

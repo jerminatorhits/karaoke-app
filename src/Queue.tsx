@@ -3,22 +3,28 @@ import { decodeHtmlEntities } from './utils/decodeHtml'
 
 interface QueueProps {
   items: QueueItem[]
+  playingItem: QueueItem | null
   currentId: string | null
   embedBlockedIds: Set<string>
   onRemove: (id: string) => void
   onMoveUp: (id: string) => void
   onMoveDown: (id: string) => void
+  onSkipCurrent: () => void
 }
 
 export function Queue({
   items,
+  playingItem,
   currentId,
   embedBlockedIds,
   onRemove,
   onMoveUp,
   onMoveDown,
+  onSkipCurrent,
 }: QueueProps) {
-  if (items.length === 0) {
+  const hasContent = playingItem !== null || items.length > 0
+
+  if (!hasContent) {
     return (
       <div className="queue queue-empty">
         <p>Queue is empty. Search above to add songs.</p>
@@ -28,6 +34,24 @@ export function Queue({
 
   return (
     <ul className="queue" aria-label="Song queue">
+      {playingItem && (
+        <li className="queue-item is-current queue-item-now-playing" aria-current="true">
+          <span className="queue-item-now-playing-label">Now playing</span>
+          <span className="queue-item-title">
+            {decodeHtmlEntities(playingItem.title)}
+          </span>
+          <div className="queue-item-actions">
+            <button
+              type="button"
+              onClick={onSkipCurrent}
+              title="Skip song"
+              aria-label="Skip current song"
+            >
+              ×
+            </button>
+          </div>
+        </li>
+      )}
       {items.map((item, index) => {
         const isBlocked = embedBlockedIds.has(item.videoId)
         return (

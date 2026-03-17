@@ -14,7 +14,7 @@ interface YTPlayerCtor {
         onStateChange?: (ev: { data: number }) => void
         onError?: (ev: { data: number }) => void
       }
-      playerVars?: { autoplay?: number }
+      playerVars?: { autoplay?: number; controls?: number; disablekb?: number; fs?: number; rel?: number }
     }
   ): YT.Player
 }
@@ -32,12 +32,13 @@ export interface YouTubePlayerHandle {
 
 interface YouTubePlayerProps {
   videoId: string
+  disableControls?: boolean
   onEnded?: () => void
   onEmbedBlocked?: (videoId: string) => void
 }
 
 const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
-  function YouTubePlayer({ videoId, onEnded, onEmbedBlocked }, ref) {
+  function YouTubePlayer({ videoId, disableControls, onEnded, onEmbedBlocked }, ref) {
     const containerRef = useRef<HTMLDivElement>(null)
     const playerRef = useRef<YT.Player | null>(null)
     const playerReadyRef = useRef(false)
@@ -48,6 +49,16 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
     onEndedRef.current = onEnded
     const onEmbedBlockedRef = useRef(onEmbedBlocked)
     onEmbedBlockedRef.current = onEmbedBlocked
+    const disableControlsRef = useRef(disableControls)
+    disableControlsRef.current = disableControls
+
+    const getPlayerVars = () => {
+      const base = { autoplay: 1, fs: 0, rel: 0 }
+      if (disableControlsRef.current) {
+        return { ...base, controls: 0, disablekb: 1 }
+      }
+      return base
+    }
 
     const loadVideoByIdSafe = useRef((id: string) => {
       const p = playerRef.current
@@ -84,7 +95,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
             height: '100%',
             width: '100%',
             videoId: id,
-            playerVars: { autoplay: 1 },
+            playerVars: getPlayerVars(),
             events: {
               onReady() {
                 playerReadyRef.current = true
@@ -108,7 +119,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       },
     }))
 
-    // Load YouTube script once on mount; do not destroy player when videoId changes
+    // Load YouTube script once on mount; never destroy for party-mode toggle so video never restarts
     useEffect(() => {
       const container = containerRef.current
       if (!container) return
@@ -133,7 +144,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
           height: '100%',
           width: '100%',
           videoId: videoId || undefined,
-          playerVars: { autoplay: 1 },
+          playerVars: getPlayerVars(),
           events: {
             onReady() {
               playerReadyRef.current = true
@@ -173,7 +184,6 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       }
 
       return () => {
-        // Don't destroy player when videoId changes; only clear pending so next run can load new id
         pendingVideoIdRef.current = null
       }
     }, [videoId])
@@ -197,17 +207,12 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       setEmbedBlocked(false)
     }, [videoId])
 
-    const watchUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}` : null
-
     return (
       <div className="youtube-player-wrap">
         <div ref={containerRef} className="youtube-player" />
-        {embedBlocked && watchUrl && (
+        {embedBlocked && (
           <div className="youtube-embed-blocked">
             <p>Playback on this site was disabled by the video owner.</p>
-            <a href={watchUrl} target="_blank" rel="noopener noreferrer" className="youtube-watch-link">
-              Watch on YouTube
-            </a>
           </div>
         )}
         {!videoId && (

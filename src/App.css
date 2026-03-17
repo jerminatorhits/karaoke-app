@@ -11,6 +11,11 @@
   background: #000;
 }
 
+.app.cursor-idle,
+.app.cursor-idle * {
+  cursor: none !important;
+}
+
 .header {
   padding: 1.25rem 1.5rem;
   background: var(--surface);
@@ -67,6 +72,12 @@
   padding: 0;
   margin: 0;
   background: #000;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.player-section-party::selection {
+  background: transparent;
 }
 
 .player-section-party .youtube-player-wrap {
@@ -78,6 +89,7 @@
   width: 100%;
   border-radius: 0;
   border: none;
+  pointer-events: none;
 }
 
 .party-bottom-bar {
@@ -111,7 +123,7 @@
   display: flex;
   align-items: center;
   white-space: nowrap;
-  animation: party-ticker-scroll 24s linear infinite;
+  animation: party-ticker-scroll 48s linear infinite;
   animation-iteration-count: infinite;
 }
 
@@ -144,25 +156,6 @@
 
 .party-qr svg {
   display: block;
-}
-
-.party-exit {
-  position: fixed;
-  top: 12px;
-  right: 12px;
-  z-index: 103;
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  background: rgba(0, 0, 0, 0.7);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.party-exit:hover {
-  background: rgba(0, 0, 0, 0.9);
 }
 
 .main {
@@ -240,20 +233,6 @@
   max-width: 280px;
 }
 
-.youtube-watch-link {
-  display: inline-block;
-  padding: 0.6rem 1.2rem;
-  background: var(--accent);
-  color: #fff;
-  text-decoration: none;
-  font-weight: 600;
-  border-radius: 8px;
-}
-
-.youtube-watch-link:hover {
-  background: var(--accent-dim);
-}
-
 .now-playing {
   margin: 0.75rem 0 0;
   font-size: 0.9rem;
@@ -262,16 +241,6 @@
 
 .now-playing strong {
   color: var(--text);
-}
-
-.watch-on-yt {
-  color: var(--accent);
-  text-decoration: none;
-  font-weight: 600;
-}
-
-.watch-on-yt:hover {
-  text-decoration: underline;
 }
 
 .queue-section {
@@ -359,6 +328,20 @@
 .queue-item.is-current .queue-item-index {
   color: var(--accent);
   font-weight: 600;
+}
+
+.queue-item-now-playing .queue-item-title {
+  flex: 1;
+}
+
+.queue-item-now-playing-label {
+  flex-shrink: 0;
+  width: 5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .queue-item-title {
